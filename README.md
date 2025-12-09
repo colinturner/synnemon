@@ -16,16 +16,18 @@ A beautiful, mobile-optimized web app for learning German vocabulary with spaced
 
 ### Nouns
 1. See the word (e.g., "Haus")
-2. Type the article → `das` (turns green when correct)
+2. Type the article → `das` (turns green for neuter, blue for masculine, pink for feminine)
 3. Press Space → type the word → `Haus`
 4. Comma appears → type the plural → `Häuser`
-5. Translation and example sentences are revealed
+5. Result displays as: `das Haus, Häuser`
+6. Translation and example sentences are revealed (press Tab)
 
 ### Verbs
-1. See the verb (e.g., "gehen")
-2. Type the infinitive → `gehen`
-3. Comma appears → type → `du gehst`
-4. Translation and example sentences are revealed
+1. See the verb (e.g., "hören")
+2. Type the infinitive → `hören`
+3. Comma and "du " appear → type only the conjugation → `hörst`
+4. Result displays as: `hören, du hörst`
+5. Translation and example sentences are revealed (press Tab)
 
 ### Keyboard Shortcuts
 - **Tab**: Auto-complete current segment
@@ -40,6 +42,9 @@ npm install
 
 # Start development server
 npm run dev
+
+# Run tests
+npm run test
 ```
 
 The app works offline without any configuration. Progress will be stored locally.

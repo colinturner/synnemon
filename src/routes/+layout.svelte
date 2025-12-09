@@ -5,7 +5,7 @@
   import { progressStore } from '$lib/stores/progress.svelte';
   import { loadVoices } from '$lib/utils/speech';
 
-  let { children } = $props();
+	let { children } = $props();
 
   onMount(async () => {
     // Initialize auth first

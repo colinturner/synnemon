@@ -1,13 +1,15 @@
 import { browser } from '$app/environment';
 import type { AppSettings } from '$lib/types';
-import type { BaseLanguage } from '$lib/data/vocabulary';
+import type { Language } from '$lib/data/vocabulary';
 
-const SETTINGS_KEY = 'german-drills-settings';
+const SETTINGS_KEY = 'language-drills-settings';
 
 const defaultSettings: AppSettings = {
   baseLanguage: 'en',
+  targetLanguage: 'de',
   fullConjugationMode: false,
-  audioEnabled: true
+  audioEnabled: true,
+  wordTypes: 'both'
 };
 
 function loadSettings(): AppSettings {
@@ -16,7 +18,16 @@ function loadSettings(): AppSettings {
   try {
     const stored = localStorage.getItem(SETTINGS_KEY);
     if (stored) {
-      return { ...defaultSettings, ...JSON.parse(stored) };
+      const parsed = JSON.parse(stored);
+      // Migrate old settings that don't have targetLanguage
+      if (!parsed.targetLanguage) {
+        parsed.targetLanguage = 'de';
+      }
+      // Migrate old settings that don't have wordTypes
+      if (!parsed.wordTypes) {
+        parsed.wordTypes = 'both';
+      }
+      return { ...defaultSettings, ...parsed };
     }
   } catch (e) {
     console.error('Failed to load settings:', e);
@@ -43,8 +54,21 @@ function createSettingsStore() {
       return settings;
     },
     
-    setBaseLanguage(lang: BaseLanguage) {
+    setBaseLanguage(lang: Language) {
+      // Don't allow base and target to be the same
+      if (lang === settings.targetLanguage) {
+        return;
+      }
       settings = { ...settings, baseLanguage: lang };
+      saveSettings(settings);
+    },
+    
+    setTargetLanguage(lang: Language) {
+      // Don't allow base and target to be the same
+      if (lang === settings.baseLanguage) {
+        return;
+      }
+      settings = { ...settings, targetLanguage: lang };
       saveSettings(settings);
     },
     
@@ -58,6 +82,11 @@ function createSettingsStore() {
       saveSettings(settings);
     },
     
+    setWordTypes(wordTypes: 'nouns' | 'verbs' | 'both') {
+      settings = { ...settings, wordTypes };
+      saveSettings(settings);
+    },
+    
     reset() {
       settings = defaultSettings;
       saveSettings(settings);
@@ -66,4 +95,3 @@ function createSettingsStore() {
 }
 
 export const settingsStore = createSettingsStore();
-

@@ -5,10 +5,26 @@
   import AuthGate from '$lib/components/AuthGate.svelte';
   import DrillInput from '$lib/components/DrillInput.svelte';
   import { progressStore } from '$lib/stores/progress.svelte';
-  import { vocabulary, type VocabularyItem } from '$lib/data/vocabulary';
+  import { settingsStore } from '$lib/stores/settings.svelte';
+  import { nouns } from '$lib/data/nouns';
+  import { verbs } from '$lib/data/verbs';
+  import type { VocabularyItem } from '$lib/data/vocabulary';
 
   // Check for offline mode
   const isOffline = $derived(browser && $page.url.searchParams.get('offline') === 'true');
+
+  // Get filtered vocabulary based on wordTypes setting
+  function getFilteredVocabulary(): VocabularyItem[] {
+    const wordTypes = settingsStore.value.wordTypes;
+    switch (wordTypes) {
+      case 'nouns':
+        return nouns;
+      case 'verbs':
+        return verbs;
+      case 'both':
+        return [...nouns, ...verbs];
+    }
+  }
 
   // Get words due for review
   let wordQueue = $state<VocabularyItem[]>([]);
@@ -16,14 +32,17 @@
   let sessionStats = $state({ correct: 0, incorrect: 0 });
   let sessionComplete = $state(false);
 
-  // Initialize word queue when progress loads
+  // Initialize word queue when progress loads or wordTypes changes
   $effect(() => {
     if (!progressStore.loading) {
+      // React to wordTypes changes
+      const _ = settingsStore.value.wordTypes;
+      
       const dueWords = progressStore.getWordsDueForReview();
       
       if (dueWords.length > 0) {
-        // Shuffle and take up to 20 words per session
-        wordQueue = shuffleArray(dueWords).slice(0, 20);
+        // Apply partial shuffle to maintain priority while adding variety
+        wordQueue = partialShuffle(dueWords);
         currentIndex = 0;
         sessionComplete = false;
       } else {
@@ -35,13 +54,25 @@
   // Current word
   const currentWord = $derived(wordQueue[currentIndex]);
 
-  // Shuffle array (Fisher-Yates)
-  function shuffleArray<T>(array: T[]): T[] {
-    const result = [...array];
-    for (let i = result.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [result[i], result[j]] = [result[j], result[i]];
+  // Partial shuffle: maintains priority order while adding variety
+  // Shuffles words in batches to keep most urgent words earlier
+  function partialShuffle<T>(array: T[]): T[] {
+    if (array.length === 0) return array;
+    
+    const batchSize = Math.max(5, Math.min(10, Math.floor(array.length / 3)));
+    const result: T[] = [];
+    
+    // Process in batches
+    for (let i = 0; i < array.length; i += batchSize) {
+      const batch = array.slice(i, i + batchSize);
+      // Shuffle within batch (Fisher-Yates)
+      for (let j = batch.length - 1; j > 0; j--) {
+        const k = Math.floor(Math.random() * (j + 1));
+        [batch[j], batch[k]] = [batch[k], batch[j]];
+      }
+      result.push(...batch);
     }
+    
     return result;
   }
 
@@ -68,7 +99,7 @@
     const dueWords = progressStore.getWordsDueForReview();
     
     if (dueWords.length > 0) {
-      wordQueue = shuffleArray(dueWords).slice(0, 20);
+      wordQueue = partialShuffle(dueWords);
       currentIndex = 0;
       sessionStats = { correct: 0, incorrect: 0 };
       sessionComplete = false;
@@ -77,7 +108,8 @@
 
   // Practice all words (ignore spaced repetition)
   function practiceAll() {
-    wordQueue = shuffleArray([...vocabulary]).slice(0, 20);
+    const vocabulary = getFilteredVocabulary();
+    wordQueue = partialShuffle([...vocabulary]);
     currentIndex = 0;
     sessionStats = { correct: 0, incorrect: 0 };
     sessionComplete = false;
@@ -139,23 +171,6 @@
             </div>
           </div>
 
-          <div class="overall-progress">
-            <h3>Overall Progress</h3>
-            <div class="progress-stats">
-              <div class="progress-stat">
-                <span class="label">Words Learned</span>
-                <span class="value">{progressStore.getStats().learned} / {progressStore.getStats().total}</span>
-              </div>
-              <div class="progress-stat">
-                <span class="label">Mastered</span>
-                <span class="value">{progressStore.getStats().mastered}</span>
-              </div>
-              <div class="progress-stat">
-                <span class="label">Accuracy</span>
-                <span class="value">{progressStore.getStats().accuracy}%</span>
-              </div>
-            </div>
-          </div>
         </div>
       {:else if currentWord}
         <div class="drill-wrapper">

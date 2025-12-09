@@ -3,32 +3,36 @@
   import { settingsStore } from '$lib/stores/settings.svelte';
   import { progressStore } from '$lib/stores/progress.svelte';
   import { isSupabaseConfigured } from '$lib/supabase';
+  import { getLanguageName, type Language } from '$lib/data/vocabulary';
 
   let showSettings = $state(false);
-  let showStats = $state(false);
 
   const auth = $derived(authStore.state);
   const settings = $derived(settingsStore.value);
-  const stats = $derived(progressStore.getStats());
+
+  // All available languages
+  const languages: { code: Language; flag: string; name: string }[] = [
+    { code: 'en', flag: '🇬🇧', name: 'English' },
+    { code: 'de', flag: '🇩🇪', name: 'German' },
+    { code: 'fr', flag: '🇫🇷', name: 'French' },
+    { code: 'es', flag: '🇪🇸', name: 'Spanish' },
+    { code: 'no', flag: '🇳🇴', name: 'Norwegian' },
+  ];
+
+  // Get flag emoji for a language code
+  function getFlag(code: Language): string {
+    return languages.find(l => l.code === code)?.flag || '';
+  }
 </script>
 
 <header class="header">
   <div class="header-content">
     <div class="logo">
-      <span class="logo-icon">🇩🇪</span>
-      <span class="logo-text">German Drills</span>
+      <span class="logo-icon">{getFlag(settings.targetLanguage)}</span>
+      <span class="logo-text">Language Drills</span>
     </div>
 
     <nav class="nav">
-      <!-- Stats button -->
-      <button 
-        class="nav-btn" 
-        onclick={() => showStats = !showStats}
-        title="Statistics"
-      >
-        📊
-      </button>
-
       <!-- Settings button -->
       <button 
         class="nav-btn" 
@@ -64,57 +68,44 @@
     </nav>
   </div>
 
-  <!-- Stats dropdown -->
-  {#if showStats}
-    <div class="dropdown stats-dropdown animate-fade-in">
-      <h3>Your Progress</h3>
-      <div class="stats-grid">
-        <div class="stat">
-          <span class="stat-value">{stats.dueForReview}</span>
-          <span class="stat-label">Due for review</span>
-        </div>
-        <div class="stat">
-          <span class="stat-value">{stats.learned}</span>
-          <span class="stat-label">Words learned</span>
-        </div>
-        <div class="stat">
-          <span class="stat-value">{stats.mastered}</span>
-          <span class="stat-label">Mastered</span>
-        </div>
-        <div class="stat">
-          <span class="stat-value">{stats.accuracy}%</span>
-          <span class="stat-label">Accuracy</span>
-        </div>
-      </div>
-      <div class="stats-total">
-        {stats.totalCorrect} correct / {stats.totalIncorrect} incorrect
-      </div>
-      <button class="close-btn" onclick={() => showStats = false}>×</button>
-    </div>
-  {/if}
-
   <!-- Settings dropdown -->
   {#if showSettings}
     <div class="dropdown settings-dropdown animate-fade-in">
       <h3>Settings</h3>
       
       <div class="setting-row">
-        <span class="setting-label">Base Language</span>
-        <div class="toggle-group">
-          <button 
-            class="toggle-btn" 
-            class:active={settings.baseLanguage === 'en'}
-            onclick={() => settingsStore.setBaseLanguage('en')}
-          >
-            🇬🇧 English
-          </button>
-          <button 
-            class="toggle-btn" 
-            class:active={settings.baseLanguage === 'no'}
-            onclick={() => settingsStore.setBaseLanguage('no')}
-          >
-            🇳🇴 Norwegian
-          </button>
+        <span class="setting-label">I'm Learning (Target)</span>
+        <div class="language-grid">
+          {#each languages as lang}
+            <button 
+              class="lang-btn" 
+              class:active={settings.targetLanguage === lang.code}
+              class:disabled={settings.baseLanguage === lang.code}
+              disabled={settings.baseLanguage === lang.code}
+              onclick={() => settingsStore.setTargetLanguage(lang.code)}
+              title={settings.baseLanguage === lang.code ? "Can't learn the same language you know" : lang.name}
+            >
+              {lang.flag} {lang.name}
+            </button>
+          {/each}
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <span class="setting-label">I Know (Base)</span>
+        <div class="language-grid">
+          {#each languages as lang}
+            <button 
+              class="lang-btn" 
+              class:active={settings.baseLanguage === lang.code}
+              class:disabled={settings.targetLanguage === lang.code}
+              disabled={settings.targetLanguage === lang.code}
+              onclick={() => settingsStore.setBaseLanguage(lang.code)}
+              title={settings.targetLanguage === lang.code ? "Can't know the same language you're learning" : lang.name}
+            >
+              {lang.flag} {lang.name}
+            </button>
+          {/each}
         </div>
       </div>
 
@@ -138,7 +129,35 @@
         >
           {settings.fullConjugationMode ? '✓ Enabled' : 'Disabled'}
         </button>
-        <p class="setting-hint">Practice all verb persons (ich, du, er/sie/es...)</p>
+        <p class="setting-hint">Practice all verb persons</p>
+      </div>
+
+      <div class="setting-row">
+        <span class="setting-label">Word Types</span>
+        <div class="toggle-group">
+          <button 
+            class="toggle-btn" 
+            class:active={settings.wordTypes === 'nouns'}
+            onclick={() => settingsStore.setWordTypes('nouns')}
+          >
+            Nouns
+          </button>
+          <button 
+            class="toggle-btn" 
+            class:active={settings.wordTypes === 'verbs'}
+            onclick={() => settingsStore.setWordTypes('verbs')}
+          >
+            Verbs
+          </button>
+          <button 
+            class="toggle-btn" 
+            class:active={settings.wordTypes === 'both'}
+            onclick={() => settingsStore.setWordTypes('both')}
+          >
+            Both
+          </button>
+        </div>
+        <p class="setting-hint">Choose which word types to practice</p>
       </div>
 
       {#if auth.isAuthenticated}
@@ -155,10 +174,10 @@
 </header>
 
 <!-- Click outside to close -->
-{#if showSettings || showStats}
+{#if showSettings}
   <button 
     class="backdrop" 
-    onclick={() => { showSettings = false; showStats = false; }}
+    onclick={() => { showSettings = false; }}
     aria-label="Close dropdown"
   ></button>
 {/if}
@@ -271,7 +290,7 @@
     border: 1px solid var(--color-bg-elevated);
     border-radius: var(--radius-lg);
     padding: var(--space-lg);
-    min-width: 280px;
+    min-width: 320px;
     box-shadow: var(--shadow-lg);
   }
 
@@ -300,41 +319,6 @@
     color: var(--color-text);
   }
 
-  /* Stats dropdown */
-  .stats-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--space-md);
-    margin-bottom: var(--space-md);
-  }
-
-  .stat {
-    text-align: center;
-    padding: var(--space-sm);
-    background: var(--color-bg);
-    border-radius: var(--radius-md);
-  }
-
-  .stat-value {
-    display: block;
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--color-accent);
-  }
-
-  .stat-label {
-    font-size: 0.75rem;
-    color: var(--color-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  .stats-total {
-    text-align: center;
-    font-size: 0.875rem;
-    color: var(--color-text-muted);
-  }
-
   /* Settings dropdown */
   .setting-row {
     margin-bottom: var(--space-md);
@@ -346,6 +330,39 @@
     font-weight: 500;
     margin-bottom: var(--space-xs);
     color: var(--color-text-muted);
+  }
+
+  .language-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-xs);
+  }
+
+  .lang-btn {
+    padding: var(--space-sm) var(--space-md);
+    background: var(--color-bg);
+    border: 1px solid var(--color-bg-elevated);
+    border-radius: var(--radius-md);
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    transition: all var(--transition-fast);
+    text-align: left;
+  }
+
+  .lang-btn:hover:not(.disabled) {
+    background: var(--color-bg-elevated);
+    color: var(--color-text);
+  }
+
+  .lang-btn.active {
+    background: var(--color-accent);
+    color: var(--color-bg);
+    border-color: var(--color-accent);
+  }
+
+  .lang-btn.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
   }
 
   .toggle-group {
@@ -402,6 +419,9 @@
       right: var(--space-md);
       min-width: auto;
     }
+
+    .language-grid {
+      grid-template-columns: 1fr;
+    }
   }
 </style>
-

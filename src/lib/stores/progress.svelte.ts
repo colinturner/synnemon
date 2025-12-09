@@ -1,10 +1,13 @@
 import { browser } from '$app/environment';
 import { supabase, isSupabaseConfigured } from '$lib/supabase';
 import { authStore } from './auth.svelte';
+import { settingsStore } from './settings.svelte';
 import type { UserProgress } from '$lib/types';
-import { vocabulary } from '$lib/data/vocabulary';
+import { nouns } from '$lib/data/nouns';
+import { verbs } from '$lib/data/verbs';
+import type { VocabularyItem } from '$lib/data/vocabulary';
 
-const LOCAL_PROGRESS_KEY = 'german-drills-progress';
+const LOCAL_PROGRESS_KEY = 'language-drills-progress';
 
 // SM-2 Spaced Repetition Algorithm
 function calculateNextReview(
@@ -44,13 +47,9 @@ function createProgressStore() {
   let loading = $state(true);
   let syncing = $state(false);
 
-  // Generate word ID
-  function getWordId(item: typeof vocabulary[number]): string {
-    if (item.type === 'noun') {
-      return `noun:${item.german}`;
-    } else {
-      return `verb:${item.infinitive}`;
-    }
+  // Generate word ID - now uses the id field from vocabulary
+  function getWordId(item: VocabularyItem): string {
+    return `${item.type}:${item.id}`;
   }
 
   // Load progress from localStorage
@@ -198,9 +197,23 @@ function createProgressStore() {
     }
   }
 
+  // Get filtered vocabulary based on wordTypes setting
+  function getFilteredVocabulary(): VocabularyItem[] {
+    const wordTypes = settingsStore.value.wordTypes;
+    switch (wordTypes) {
+      case 'nouns':
+        return nouns;
+      case 'verbs':
+        return verbs;
+      case 'both':
+        return [...nouns, ...verbs];
+    }
+  }
+
   // Get words due for review (spaced repetition)
-  function getWordsDueForReview(): typeof vocabulary {
+  function getWordsDueForReview(): VocabularyItem[] {
     const now = new Date();
+    const vocabulary = getFilteredVocabulary();
     
     return vocabulary.filter(item => {
       const wordId = getWordId(item);
@@ -224,27 +237,6 @@ function createProgressStore() {
     });
   }
 
-  // Get statistics
-  function getStats() {
-    const total = vocabulary.length;
-    const learned = Array.from(progress.values()).filter(p => p.correct_count > 0).length;
-    const mastered = Array.from(progress.values()).filter(p => p.interval >= 21).length; // 21+ days = mastered
-    const totalCorrect = Array.from(progress.values()).reduce((sum, p) => sum + p.correct_count, 0);
-    const totalIncorrect = Array.from(progress.values()).reduce((sum, p) => sum + p.incorrect_count, 0);
-    const totalAttempts = totalCorrect + totalIncorrect;
-    const accuracy = totalAttempts > 0 ? Math.round((totalCorrect / totalAttempts) * 100) : 0;
-
-    return {
-      total,
-      learned,
-      mastered,
-      totalCorrect,
-      totalIncorrect,
-      accuracy,
-      dueForReview: getWordsDueForReview().length
-    };
-  }
-
   return {
     get progress() {
       return progress;
@@ -259,10 +251,8 @@ function createProgressStore() {
     init,
     recordAttempt,
     getWordsDueForReview,
-    getStats,
     syncToCloud
   };
 }
 
 export const progressStore = createProgressStore();
-
