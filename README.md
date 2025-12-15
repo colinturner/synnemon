@@ -143,16 +143,35 @@ INSERT INTO allowed_users (email) VALUES ('new-user@example.com');
 
 ## Deployment
 
-### Vercel (Recommended)
+### GitHub Pages
+
+The app is configured for GitHub Pages deployment:
+
+1. **Enable GitHub Pages in your repository:**
+   - Go to Settings → Pages
+   - Source: GitHub Actions
+
+2. **Update the base path** (if your repo is not at root):
+   - Edit `.github/workflows/deploy.yml`
+   - Change `GITHUB_PAGES_BASE: /synnemon` to match your repo name
+   - If your repo is `username.github.io`, set it to empty: `GITHUB_PAGES_BASE: ''`
+
+3. **Set environment variables** (optional, for Supabase sync):
+   - Go to Settings → Secrets and variables → Actions
+   - Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` if you want cloud sync
+   - Update the workflow to use these secrets if needed
+
+4. **Push to main branch:**
+   - The GitHub Actions workflow will automatically build and deploy
+
+The app will work offline without Supabase configuration, but cloud sync requires the environment variables.
+
+### Vercel
 
 1. Push your code to GitHub
 2. Import to [Vercel](https://vercel.com)
 3. Add environment variables in Vercel project settings
 4. Deploy!
-
-### Other Platforms
-
-The app uses `@sveltejs/adapter-auto` which automatically adapts to most platforms.
 
 ## Tech Stack
 
